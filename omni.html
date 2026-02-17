@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swiss Army Pro - Clean Scan</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    
+    <style>
+        :root {
+            --bg: #0f172a; --sidebar: #1e293b; --card: #1e293b;
+            --accent: #38bdf8; --success: #22c55e; --text: #f8fafc; --danger: #ef4444;
+            --input-bg: #0f172a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+
+        /* Auth */
+        #auth-page { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .auth-card { background: var(--sidebar); padding: 40px; border-radius: 20px; width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* Layout */
+        .app-container { display: none; height: 100vh; }
+        .sidebar { width: 260px; background: var(--sidebar); display: flex; flex-direction: column; border-right: 1px solid #334155; }
+        .sidebar-header { padding: 25px; font-weight: 800; color: var(--accent); border-bottom: 1px solid #334155; display: flex; justify-content: space-between; }
+        .sidebar ul { list-style: none; padding: 10px; flex: 1; overflow-y: auto; }
+        .sidebar li { padding: 12px 15px; margin-bottom: 4px; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 12px; color: #94a3b8; }
+        .sidebar li.active { background: var(--accent); color: var(--bg); font-weight: 600; }
+
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; display: flex; justify-content: center; background: #0b1120; }
+        .tool-panel { display: none; width: 100%; max-width: 550px; background: var(--card); padding: 30px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); text-align: center; border: 1px solid #334155; }
+        .tool-panel.active { display: block; animation: fadeIn 0.3s ease; }
+
+        /* Shared UI */
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: var(--input-bg); color: white; margin-bottom: 10px; outline: none; }
+        button { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; background: var(--accent); color: var(--bg); transition: 0.2s; }
+        .display-big { font-size: 4rem; font-family: 'JetBrains Mono', monospace; margin: 20px 0; color: var(--text); }
+        
+        /* --- CUSTOM QR SCANNER UI OVERRIDES --- */
+        #reader { border: 2px dashed #334155 !important; border-radius: 16px !important; padding: 10px !important; background: var(--input-bg) !important; }
+        #reader__dashboard_section_csr button { 
+            background: var(--accent) !important; color: var(--bg) !important; 
+            border: none !important; padding: 10px 18px !important; 
+            border-radius: 8px !important; font-weight: 700 !important;
+            margin: 5px !important; cursor: pointer !important;
+        }
+        #reader__header_message { display: none !important; } /* Hide the 'Info' text */
+        #reader__status_span { color: var(--accent) !important; font-weight: bold !important; }
+        #reader__filescan_input { color: white !important; margin-top: 10px; }
+        #reader img[alt="Info icon"] { display: none !important; }
+        #reader__camera_selection { background: var(--bg); color: white; border: 1px solid #334155; padding: 5px; border-radius: 5px; }
+        video { border-radius: 12px; }
+
+        /* Calculator */
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .calc-grid button { padding: 20px; font-size: 1.2rem; background: #334155; color: white; }
+        .calc-grid button.op { background: var(--accent); color: var(--bg); }
+        .calc-grid button.eq { background: var(--success); color: var(--bg); grid-column: span 2; }
+
+        /* Pass Gen */
+        .option-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; }
+        .option-row input[type="checkbox"] { width: auto; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+<div id="auth-page">
+    <div class="auth-card">
+        <h2 id="auth-title">Swiss Army Login</h2>
+        <div style="margin: 20px 0;">
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+        </div>
+        <div id="login-btns">
+            <button onclick="handleAuth('login')" style="width: 100%;">Login</button>
+            <p style="margin-top: 15px; font-size: 0.8rem; cursor: pointer; color: var(--accent);" onclick="toggleAuthMode()">Create Account</p>
+        </div>
+    </div>
+</div>
+
+<div class="app-container" id="app">
+    <nav class="sidebar">
+        <div class="sidebar-header"><span>PRO TOOLKIT</span><i class="fas fa-power-off" style="cursor:pointer" onclick="location.reload()"></i></div>
+        <ul id="nav-list">
+            <li class="active" data-tool="clock"><i class="fas fa-clock"></i> Clock</li>
+            <li data-tool="stopwatch"><i class="fas fa-stopwatch"></i> Stopwatch</li>
+            <li data-tool="timer"><i class="fas fa-hourglass-start"></i> Timer</li>
+            <li data-tool="calc"><i class="fas fa-calculator"></i> Calculator</li>
+            <li data-tool="qrread"><i class="fas fa-qrcode"></i> Scan QR</li>
+            <li data-tool="qrgen"><i class="fas fa-plus-circle"></i> Create QR</li>
+            <li data-tool="pass"><i class="fas fa-key"></i> Pass Gen</li>
+            <li data-tool="weather"><i class="fas fa-sun"></i> Weather</li>
+            <li data-tool="todo"><i class="fas fa-tasks"></i> Tasks</li>
+            <li data-tool="text"><i class="fas fa-align-left"></i> Word Count</li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <section id="clock" class="tool-panel active">
+            <h2>Clock</h2>
+            <div class="display-big" id="clk-time">00:00:00</div>
+            <p id="clk-date" style="color: var(--accent); letter-spacing: 2px;"></p>
+        </section>
+
+        <section id="stopwatch" class="tool-panel">
+            <h2>Stopwatch</h2>
+            <div class="display-big" id="sw-time">00:00:00</div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="swStart()" style="flex:1">Start</button>
+                <button onclick="swStop()" class="secondary" style="flex:1">Stop</button>
+                <button onclick="swReset()" style="background:var(--danger); color:white; flex:1">Reset</button>
+            </div>
+        </section>
+
+        <section id="timer" class="tool-panel">
+            <h2>Timer</h2>
+            <input type="number" id="tm-input" placeholder="Seconds">
+            <div class="display-big" id="tm-display">00</div>
+            <button onclick="tmStart()" style="width:100%">Start Countdown</button>
+        </section>
+
+        <section id="calc" class="tool-panel">
+            <input type="text" id="calc-display" readonly style="height: 60px; font-size: 2rem; text-align: right;">
+            <div class="calc-grid">
+                <button onclick="cClear()" style="background:var(--danger)">C</button>
+                <button class="op" onclick="cIn('/')">/</button><button class="op" onclick="cIn('*')">×</button><button class="op" onclick="cIn('-')">-</button>
+                <button onclick="cIn('7')">7</button><button onclick="cIn('8')">8</button><button onclick="cIn('9')">9</button><button class="op" onclick="cIn('+')">+</button>
+                <button onclick="cIn('4')">4</button><button onclick="cIn('5')">5</button><button onclick="cIn('6')">6</button>
+                <button class="eq" onclick="cCalc()">=</button>
+                <button onclick="cIn('1')">1</button><button onclick="cIn('2')">2</button><button onclick="cIn('3')">3</button><button onclick="cIn('0')">0</button>
+            </div>
+        </section>
+
+        <section id="qrread" class="tool-panel">
+            <h2>Scan QR Code</h2>
+            <div id="reader" style="width: 100%;"></div>
+            <div id="qr-scanned-result" style="margin-top: 20px; background: var(--bg); border: 1px solid #334155; padding: 15px; border-radius: 8px; word-break: break-all; color: var(--accent);">
+                Result will appear here...
+            </div>
+        </section>
+
+        <section id="pass" class="tool-panel">
+            <h2>Password Generator</h2>
+            <div id="pw-output" style="background: var(--bg); padding: 20px; border-radius: 12px; font-family: monospace; font-size: 1.2rem; margin-bottom: 20px; color: var(--accent);">********</div>
+            <div class="option-row"><span>Length:</span><input type="number" id="pw-len" value="16" style="width: 60px; margin: 0;"></div>
+            <div class="option-row"><span>Numbers:</span><input type="checkbox" id="pw-num" checked></div>
+            <div class="option-row"><span>Symbols:</span><input type="checkbox" id="pw-sym" checked></div>
+            <div class="option-row"><span>Type:</span>
+                <select id="pw-mode" style="width: 130px; margin: 0;">
+                    <option value="random">Random</option>
+                    <option value="memorable">Memorable</option>
+                </select>
+            </div>
+            <button onclick="pwGen()" style="width:100%; margin-top:10px;">Generate</button>
+        </section>
+
+        <section id="qrgen" class="tool-panel">
+            <h2>Create QR</h2>
+            <input type="text" id="qr-input" placeholder="Enter text/URL">
+            <button onclick="qrGenerate()" style="width:100%">Generate</button>
+            <div id="qrcode" style="margin: 20px auto; padding: 10px; background: white; width: fit-content; border-radius: 8px;"></div>
+            <button id="qr-dl" style="display:none; width: 100%;" onclick="qrDownload()">Download PNG</button>
+        </section>
+
+        <section id="todo" class="tool-panel">
+            <h2>Task List</h2>
+            <div style="display:flex; gap:10px;"><input type="text" id="td-input" placeholder="Add task..."><button onclick="tdAdd()">Add</button></div>
+            <ul id="todo-list" style="list-style:none; text-align:left; margin-top:20px;"></ul>
+        </section>
+
+        <section id="weather" class="tool-panel"><h2>Weather</h2><input type="text" id="w-city" placeholder="City"><button onclick="wSearch()" style="width:100%">Search</button><div id="w-info" style="margin-top:20px;"></div></section>
+        <section id="text" class="tool-panel"><h2>Word Counter</h2><textarea id="tx-input" rows="10" oninput="txCount()"></textarea><div id="tx-result" style="color:var(--accent); margin-top:10px;"></div></section>
+    </main>
+</div>
+
+<script>
+    // --- AUTH ---
+    let loginMode = true;
+    function toggleAuthMode() {
+        loginMode = !loginMode;
+        document.getElementById('auth-title').innerText = loginMode ? "Welcome" : "Sign Up";
+        document.getElementById('login-btns').innerHTML = loginMode ? 
+            `<button onclick="handleAuth('login')" style="width: 100%;">Login</button><p onclick="toggleAuthMode()" style="margin-top:15px; font-size:0.8rem; cursor:pointer; color:var(--accent)">New? Create Account</p>` :
+            `<button onclick="handleAuth('signup')" style="width: 100%;">Create Account</button><p onclick="toggleAuthMode()" style="margin-top:15px; font-size:0.8rem; cursor:pointer; color:var(--accent)">Have account? Login</p>`;
+    }
+    function handleAuth(t) {
+        const u = document.getElementById('username').value, p = document.getElementById('password').value;
+        if(!u || !p) return;
+        if(t==='signup'){ localStorage.setItem('u_'+u, p); alert('Saved!'); toggleAuthMode(); }
+        else { if(localStorage.getItem('u_'+u) === p) { document.getElementById('auth-page').style.display='none'; document.getElementById('app').style.display='flex'; initScanner(); } else alert('Invalid'); }
+    }
+
+    // --- NAVIGATION ---
+    document.querySelectorAll('#nav-list li').forEach(li => {
+        li.addEventListener('click', () => {
+            document.querySelectorAll('#nav-list li').forEach(l => l.classList.remove('active'));
+            document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+            li.classList.add('active');
+            document.getElementById(li.dataset.tool).classList.add('active');
+        });
+    });
+
+    // --- QR SCANNER ---
+    function initScanner() {
+        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render((text) => {
+            document.getElementById('qr-scanned-result').innerHTML = `<strong>Decoded:</strong><br>${text}`;
+        });
+    }
+
+    // --- CLOCK ---
+    setInterval(() => {
+        const d = new Date();
+        document.getElementById('clk-time').innerText = d.toLocaleTimeString([], {hour12:false});
+        document.getElementById('clk-date').innerText = d.toDateString().toUpperCase();
+    }, 1000);
+
+    // --- STOPWATCH ---
+    let swT = 0, swI;
+    function swStart(){ clearInterval(swI); swI = setInterval(() => { swT++; const s=swT%60, m=Math.floor(swT/60)%60, h=Math.floor(swT/3600); document.getElementById('sw-time').innerText=`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`; }, 1000); }
+    function swStop(){ clearInterval(swI); }
+    function swReset(){ swStop(); swT=0; document.getElementById('sw-time').innerText="00:00:00"; }
+
+    // --- TIMER ---
+    let tmI;
+    function tmStart(){ let v=document.getElementById('tm-input').value; clearInterval(tmI); tmI=setInterval(()=>{ v--; document.getElementById('tm-display').innerText=v; if(v<=0){clearInterval(tmI); alert('Done');} },1000); }
+
+    // --- CALCULATOR ---
+    let cD = document.getElementById('calc-display');
+    function cIn(v){ cD.value += v; }
+    function cClear(){ cD.value = ""; }
+    function cCalc(){ try{ cD.value = eval(cD.value); } catch { cD.value="Error"; } }
+
+    // --- PASSWORD GEN ---
+    function pwGen() {
+        const len = document.getElementById('pw-len').value;
+        const mode = document.getElementById('pw-mode').value;
+        let res = "";
+        if(mode === 'random') {
+            let charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            if(document.getElementById('pw-num').checked) charset += "0123456789";
+            if(document.getElementById('pw-sym').checked) charset += "!@#$%^&*()";
+            for(let i=0; i<len; i++) res += charset.charAt(Math.floor(Math.random()*charset.length));
+        } else {
+            const words = ["Peak","Wave","Iron","Glitch","Bolt","Swift","Neon"];
+            while(res.length < len) res += words[Math.floor(Math.random()*words.length)];
+            res += Math.floor(Math.random()*99);
+        }
+        document.getElementById('pw-output').innerText = res;
+    }
+
+    // --- QR GENERATE ---
+    function qrGenerate(){
+        const v = document.getElementById('qr-input').value;
+        const b = document.getElementById('qrcode');
+        b.innerHTML = "";
+        if(v) { new QRCode(b, {text:v, width:180, height:180}); document.getElementById('qr-dl').style.display='block'; }
+    }
+    function qrDownload(){ const img=document.querySelector('#qrcode img'); const l=document.createElement('a'); l.href=img.src; l.download='qr.png'; l.click(); }
+
+    // --- MISC ---
+    function wSearch() { document.getElementById('w-info').innerText = `${document.getElementById('w-city').value}: 22°C - Sunny`; }
+    function tdAdd(){
+        const v = document.getElementById('td-input').value; if(!v) return;
+        const li = document.createElement('li');
+        li.style = "background:#0f172a; padding:10px; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between;";
+        li.innerHTML = `<span>${v}</span><i class="fas fa-trash" style="color:var(--danger); cursor:pointer" onclick="this.parentElement.remove()"></i>`;
+        document.getElementById('todo-list').appendChild(li);
+        document.getElementById('td-input').value = "";
+    }
+    function txCount(){ const v = document.getElementById('tx-input').value; document.getElementById('tx-result').innerText = `Words: ${v.trim()?v.trim().split(/\s+/).length:0} | Chars: ${v.length}`; }
+</script>
+</body>
+</html>
