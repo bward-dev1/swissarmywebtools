@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swiss Army Pro - Clean Scan</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+
+<div id="auth-page">
+    <div class="auth-card">
+        <h2 id="auth-title">Swiss Army Login</h2>
+        <div style="margin: 20px 0;">
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+        </div>
+        <div id="login-btns">
+            <button onclick="handleAuth('login')" style="width: 100%;">Login</button>
+            <p style="margin-top: 15px; font-size: 0.8rem; cursor: pointer; color: var(--accent);" onclick="toggleAuthMode()">Create Account</p>
+        </div>
+    </div>
+</div>
+
+<div class="app-container" id="app">
+    <nav class="sidebar">
+        <div class="sidebar-header"><span>PRO TOOLKIT</span><i class="fas fa-power-off" style="cursor:pointer" onclick="location.reload()"></i></div>
+        <ul id="nav-list">
+            <li class="active" data-tool="clock"><i class="fas fa-clock"></i> Clock</li>
+            <li data-tool="stopwatch"><i class="fas fa-stopwatch"></i> Stopwatch</li>
+            <li data-tool="timer"><i class="fas fa-hourglass-start"></i> Timer</li>
+            <li data-tool="calc"><i class="fas fa-calculator"></i> Calculator</li>
+            <li data-tool="qrread"><i class="fas fa-qrcode"></i> Scan QR</li>
+            <li data-tool="qrgen"><i class="fas fa-plus-circle"></i> Create QR</li>
+            <li data-tool="pass"><i class="fas fa-key"></i> Pass Gen</li>
+            <li data-tool="weather"><i class="fas fa-sun"></i> Weather</li>
+            <li data-tool="todo"><i class="fas fa-tasks"></i> Tasks</li>
+            <li data-tool="text"><i class="fas fa-align-left"></i> Word Count</li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <section id="clock" class="tool-panel active">
+            <h2>Clock</h2>
+            <div class="display-big" id="clk-time">00:00:00</div>
+            <p id="clk-date" style="color: var(--accent); letter-spacing: 2px;"></p>
+        </section>
+
+        <section id="stopwatch" class="tool-panel">
+            <h2>Stopwatch</h2>
+            <div class="display-big" id="sw-time">00:00:00</div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="swStart()" style="flex:1">Start</button>
+                <button onclick="swStop()" class="secondary" style="flex:1">Stop</button>
+                <button onclick="swReset()" style="background:var(--danger); color:white; flex:1">Reset</button>
+            </div>
+        </section>
+
+        <section id="timer" class="tool-panel">
+            <h2>Timer</h2>
+            <input type="number" id="tm-input" placeholder="Seconds">
+            <div class="display-big" id="tm-display">00</div>
+            <button onclick="tmStart()" style="width:100%">Start Countdown</button>
+        </section>
+
+        <section id="calc" class="tool-panel">
+            <input type="text" id="calc-display" readonly style="height: 60px; font-size: 2rem; text-align: right;">
+            <div class="calc-grid">
+                <button onclick="cClear()" style="background:var(--danger)">C</button>
+                <button class="op" onclick="cIn('/')">/</button><button class="op" onclick="cIn('*')">×</button><button class="op" onclick="cIn('-')">-</button>
+                <button onclick="cIn('7')">7</button><button onclick="cIn('8')">8</button><button onclick="cIn('9')">9</button><button class="op" onclick="cIn('+')">+</button>
+                <button onclick="cIn('4')">4</button><button onclick="cIn('5')">5</button><button onclick="cIn('6')">6</button>
+                <button class="eq" onclick="cCalc()">=</button>
+                <button onclick="cIn('1')">1</button><button onclick="cIn('2')">2</button><button onclick="cIn('3')">3</button><button onclick="cIn('0')">0</button>
+            </div>
+        </section>
+
+        <section id="qrread" class="tool-panel">
+            <h2>Scan QR Code</h2>
+            <div id="reader" style="width: 100%;"></div>
+            <div id="qr-scanned-result" style="margin-top: 20px; background: var(--bg); border: 1px solid #334155; padding: 15px; border-radius: 8px; word-break: break-all; color: var(--accent);">
+                Result will appear here...
+            </div>
+        </section>
+
+        <section id="pass" class="tool-panel">
+            <h2>Password Generator</h2>
+            <div id="pw-output" style="background: var(--bg); padding: 20px; border-radius: 12px; font-family: monospace; font-size: 1.2rem; margin-bottom: 20px; color: var(--accent);">********</div>
+            <div class="option-row"><span>Length:</span><input type="number" id="pw-len" value="16" style="width: 60px; margin: 0;"></div>
+            <div class="option-row"><span>Numbers:</span><input type="checkbox" id="pw-num" checked></div>
+            <div class="option-row"><span>Symbols:</span><input type="checkbox" id="pw-sym" checked></div>
+            <div class="option-row"><span>Type:</span>
+                <select id="pw-mode" style="width: 130px; margin: 0;">
+                    <option value="random">Random</option>
+                    <option value="memorable">Memorable</option>
+                </select>
+            </div>
+            <button onclick="pwGen()" style="width:100%; margin-top:10px;">Generate</button>
+        </section>
+
+        <section id="qrgen" class="tool-panel">
+            <h2>Create QR</h2>
+            <input type="text" id="qr-input" placeholder="Enter text/URL">
+            <button onclick="qrGenerate()" style="width:100%">Generate</button>
+            <div id="qrcode" style="margin: 20px auto; padding: 10px; background: white; width: fit-content; border-radius: 8px;"></div>
+            <button id="qr-dl" style="display:none; width: 100%;" onclick="qrDownload()">Download PNG</button>
+        </section>
+
+        <section id="todo" class="tool-panel">
+            <h2>Task List</h2>
+            <div style="display:flex; gap:10px;"><input type="text" id="td-input" placeholder="Add task..."><button onclick="tdAdd()">Add</button></div>
+            <ul id="todo-list" style="list-style:none; text-align:left; margin-top:20px;"></ul>
+        </section>
+
+        <section id="weather" class="tool-panel"><h2>Weather</h2><input type="text" id="w-city" placeholder="City"><button onclick="wSearch()" style="width:100%">Search</button><div id="w-info" style="margin-top:20px;"></div></section>
+        <section id="text" class="tool-panel"><h2>Word Counter</h2><textarea id="tx-input" rows="10" oninput="txCount()"></textarea><div id="tx-result" style="color:var(--accent); margin-top:10px;"></div></section>
+    </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
